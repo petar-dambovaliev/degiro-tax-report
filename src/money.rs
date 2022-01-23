@@ -68,6 +68,10 @@ impl Money {
         }
     }
 
+    pub fn is_negative(&self) -> bool {
+        self.amount.is_negative()
+    }
+
     fn validate(&self, rhs: &Self) -> Result<(), Error> {
         let currency = rhs.currency.as_ref().map(|c| c.to_lowercase());
         if self.currency != currency {

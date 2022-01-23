@@ -37,6 +37,7 @@ pub struct Transaction {
     order_id: String,
 }
 
+#[derive(Debug)]
 pub enum TransactionError {
     SellWithNegPrice { order_id: String },
     BuyingWithNegPrice { order_id: String },
@@ -47,14 +48,14 @@ impl Transaction {
         date: NaiveDate,
         isin: String,
         quantity: isize,
-        local_value: Money,
+        value: Money,
         order_id: String,
     ) -> Result<Self, TransactionError> {
-        if quantity.is_negative() && local_value.amount.is_negative() {
+        if quantity.is_negative() && value.amount.is_negative() {
             return Err(TransactionError::SellWithNegPrice { order_id });
         }
 
-        if quantity.is_positive() && local_value.amount.is_positive() {
+        if quantity.is_positive() && value.amount.is_positive() {
             return Err(TransactionError::BuyingWithNegPrice { order_id });
         }
 
@@ -67,8 +68,8 @@ impl Transaction {
             quantity,
             venue: "".to_string(),
             price: Default::default(),
-            local_value,
-            value: Default::default(),
+            value,
+            local_value: Default::default(),
             transaction: None,
             exchange_rate: None,
             total: "".to_string(),
@@ -76,12 +77,25 @@ impl Transaction {
         })
     }
 
+    pub fn new_unchecked(
+        date: NaiveDate,
+        isin: String,
+        quantity: isize,
+        value: Money,
+        order_id: String,
+    ) -> Self {
+        match Self::new(date, isin, quantity, value, order_id) {
+            Ok(ok) => ok,
+            Err(e) => panic!("{:#?}", e),
+        }
+    }
+
     pub fn date(&self) -> &NaiveDate {
         &self.date
     }
 
     pub fn r#type(&self) -> TransactionType {
-        match self.local_value.amount.is_negative() {
+        match self.value.amount.is_negative() {
             true => TransactionType::Buy,
             false => TransactionType::Sell,
         }

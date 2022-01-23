@@ -15,10 +15,13 @@ fn main() {
         transactions.push(record);
     }
 
-    let portfolio = Portfolio::with_carry_losses(transactions, 5);
+    let portfolio = Portfolio::with_carry_losses(transactions, 1);
 
-    let from = NaiveDate::from_ymd(2020, 1, 1);
-    let to = NaiveDate::from_ymd(2020, 12, 30);
+    // 2020 / -2330.4
+    // 2021 / 629.5
+
+    let from = NaiveDate::from_ymd(2021, 1, 1);
+    let to = NaiveDate::from_ymd(2021, 12, 31);
     let profits = portfolio.report(from, to);
 
     println!("profits for 2021 {:#?}", profits);

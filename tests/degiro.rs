@@ -26,6 +26,6 @@ fn parse_and_calculate() {
 
     assert_eq!(
         profits,
-        Money::new(d128!(-2217.061548032270391192057903790323))
+        Money::new(d128!(-2330.423052032860713296898262191196))
     )
 }
