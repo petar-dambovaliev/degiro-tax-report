@@ -22,10 +22,10 @@ fn parse_and_calculate() {
 
     let from = NaiveDate::from_ymd(2020, 1, 1);
     let to = NaiveDate::from_ymd(2020, 12, 30);
-    let profits = portfolio.report(from, to);
+    let report = portfolio.report(from, to);
 
     assert_eq!(
-        profits,
+        report.profit(),
         Money::new(d128!(-2330.423052032860713296898262191196))
     )
 }

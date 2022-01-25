@@ -2,6 +2,28 @@ use crate::{Money, Transaction, TransactionType};
 use chrono::{Datelike, NaiveDate};
 use std::collections::{HashMap, VecDeque};
 
+pub struct Report {
+    profit: Money,
+    carry_losses: Option<Money>,
+}
+
+impl Report {
+    ///returns the total profits
+    pub fn profit(&self) -> Money {
+        self.profit.clone().truncate_trailing_zeros()
+    }
+
+    /// returns the profits minus the carry over losses
+    /// from previous years
+    pub fn adjusted_profit(&self) -> Money {
+        let mut profit = self.profit.clone();
+        if let Some(cl) = &self.carry_losses {
+            profit.add(cl);
+        }
+        profit.truncate_trailing_zeros()
+    }
+}
+
 pub struct Portfolio {
     transactions: VecDeque<Transaction>,
     years_carry_losses: u8,
@@ -38,7 +60,7 @@ impl Portfolio {
         local_profit
     }
 
-    pub fn report(&self, from: NaiveDate, to: NaiveDate) -> Money {
+    pub fn report(&self, from: NaiveDate, to: NaiveDate) -> Report {
         let mut transactions = self.transactions.clone();
         let mut state_map: HashMap<String, State> = HashMap::new();
         let mut profits = Money::default();
@@ -93,11 +115,15 @@ impl Portfolio {
             }
         }
 
+        let mut report_losses = None;
         if self.years_carry_losses > 0 && carry_losses.is_negative() {
-            profits.add(&carry_losses);
+            report_losses = Some(carry_losses);
         }
 
-        profits.truncate_trailing_zeros()
+        Report {
+            profit: profits,
+            carry_losses: report_losses,
+        }
     }
 }
 
@@ -144,7 +170,7 @@ mod test {
             NaiveDate::from_ymd(2021, 12, 30),
         );
 
-        assert_eq!(report, Money::new(d128::from(-100)))
+        assert_eq!(report.adjusted_profit(), Money::new(d128::from(-100)))
     }
 
     #[test]
@@ -190,7 +216,7 @@ mod test {
             NaiveDate::from_ymd(2021, 12, 30),
         );
 
-        assert_eq!(report, Money::new(d128::from(-100)))
+        assert_eq!(report.adjusted_profit(), Money::new(d128::from(-100)))
     }
 
     #[test]
@@ -243,6 +269,6 @@ mod test {
             NaiveDate::from_ymd(2021, 12, 30),
         );
 
-        assert_eq!(report, Money::new(d128::from(-300)))
+        assert_eq!(report.adjusted_profit(), Money::new(d128::from(-300)))
     }
 }

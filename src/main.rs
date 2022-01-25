@@ -24,5 +24,9 @@ fn main() {
     let to = NaiveDate::from_ymd(2021, 12, 31);
     let profits = portfolio.report(from, to);
 
-    println!("profits for 2021 {:#?}", profits);
+    println!("profits for 2021 {:#?}", profits.profit());
+    println!(
+        "profits for 2021, adjusted with carry over losses {:#?}",
+        profits.adjusted_profit()
+    );
 }
