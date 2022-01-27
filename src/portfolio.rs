@@ -1,25 +1,61 @@
 use crate::{Money, Transaction, TransactionType};
-use chrono::{Datelike, NaiveDate};
+use chrono::Datelike;
 use std::collections::{HashMap, VecDeque};
 
+#[derive(Clone, Debug)]
 pub struct Report {
-    profit: Money,
-    carry_losses: Option<Money>,
+    profits: HashMap<i32, (Money, Money)>,
+    years_carry_losses: u8,
+    year: i32,
 }
 
 impl Report {
     ///returns the total profits
     pub fn profit(&self) -> Money {
-        self.profit.clone().truncate_trailing_zeros()
+        let profit = self.profits.get(&self.year).unwrap();
+        let mut res = profit.0.clone();
+        res.add(&profit.1);
+        res
     }
 
     /// returns the profits minus the carry over losses
     /// from previous years
     pub fn adjusted_profit(&self) -> Money {
-        let mut profit = self.profit.clone();
-        if let Some(cl) = &self.carry_losses {
-            profit.add(cl);
+        let mut prf: Vec<(i32, (Money, Money))> = self
+            .profits
+            .iter()
+            .filter(|(k, v)| **k >= self.year - self.years_carry_losses as i32)
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+
+        prf.sort_by(|a, b| a.0.cmp(&b.0));
+
+        let mut start = false;
+        let mut total = Money::default();
+        let mut profit = Money::default();
+
+        for (year, prof) in prf {
+            let mut add = prof.0.clone();
+            add.add(&prof.1);
+            if year == self.year {
+                profit = add;
+                break;
+            }
+            if !start && add.is_negative() {
+                start = true;
+            }
+
+            if start {
+                total.add(&add);
+
+                if !total.is_negative() {
+                    total = Money::default();
+                    start = false;
+                }
+            }
         }
+
+        profit.add(&total);
         profit.truncate_trailing_zeros()
     }
 }
@@ -46,10 +82,6 @@ impl Portfolio {
         }
     }
 
-    fn should_carry_losses(&self, date: &NaiveDate, first: &NaiveDate, last: &NaiveDate) -> bool {
-        self.years_carry_losses > 0 && first <= date && last >= date
-    }
-
     fn calc_trans_profit(&self, tr: &Transaction, entry: &State) -> Money {
         let mut avg_price = entry.avg.clone();
         avg_price.mul(tr.quantity);
@@ -60,16 +92,21 @@ impl Portfolio {
         local_profit
     }
 
-    pub fn report(&self, from: NaiveDate, to: NaiveDate) -> Report {
+    pub fn report(&self, year: i32) -> Report {
         let mut transactions = self.transactions.clone();
         let mut state_map: HashMap<String, State> = HashMap::new();
-        let mut profits = Money::default();
-        let last_year_carry = to.year() - (self.years_carry_losses as i32);
-        let first_date_carry = to.with_year(last_year_carry).unwrap();
-        let last_date_carry = to.with_year(to.year() - 1).unwrap();
-        let mut carry_losses = Money::default();
+        let mut profits = HashMap::new();
 
         while let Some(tr) = transactions.pop_front() {
+            if let Some(next_tr) = transactions.front() {
+                assert!(
+                    tr.date <= next_tr.date,
+                    "tr: {:#?} next: {:#?}",
+                    tr,
+                    next_tr
+                );
+            }
+
             match tr.r#type() {
                 TransactionType::Buy => {
                     let entry = state_map.entry(tr.isin).or_insert(Default::default());
@@ -82,47 +119,36 @@ impl Portfolio {
                     entry.avg = avg_price;
                 }
                 TransactionType::Sell => {
-                    if tr.quantity == 0 {
-                        panic!("already sold out before")
-                    }
-                    //todo
-                    // if it doesn't exist in the map, it means we should return an error
-                    // you cannot sell what you don't have
+                    assert_ne!(tr.quantity, 0);
                     let entry = state_map.get_mut(&tr.isin).unwrap();
-                    if tr.date >= from && tr.date <= to {
-                        let local_profit = self.calc_trans_profit(&tr, &entry);
-                        profits.add(&local_profit);
-                    } else if self.should_carry_losses(
-                        &tr.date,
-                        &first_date_carry,
-                        &last_date_carry,
-                    ) {
-                        let local_profit = self.calc_trans_profit(&tr, &entry);
-                        //accumulate total for carry over previous years
-                        carry_losses.add(&local_profit);
+                    let local_profit = self.calc_trans_profit(&tr, &entry);
+                    let profit = profits
+                        .entry(tr.date.year())
+                        .or_insert((Money::default(), Money::default()));
+
+                    if local_profit.is_negative() {
+                        profit.1.add(&local_profit);
+                    } else {
+                        profit.0.add(&local_profit);
                     }
 
+                    assert!(!tr.value.is_negative());
                     entry.total.sub(&tr.value);
-                    //todo handle error if negative
                     entry.qty += tr.quantity;
                 }
             }
 
-            if let Some(next) = transactions.get(0) {
-                if next.date > to {
+            if let Some(next) = transactions.front() {
+                if next.date.year() > year {
                     break;
                 }
             }
         }
 
-        let mut report_losses = None;
-        if self.years_carry_losses > 0 && carry_losses.is_negative() {
-            report_losses = Some(carry_losses);
-        }
-
         Report {
-            profit: profits,
-            carry_losses: report_losses,
+            profits,
+            years_carry_losses: self.years_carry_losses,
+            year,
         }
     }
 }
@@ -165,10 +191,7 @@ mod test {
         ];
 
         let portfolio = Portfolio::with_carry_losses(transactions, 1);
-        let report = portfolio.report(
-            NaiveDate::from_ymd(2021, 1, 1),
-            NaiveDate::from_ymd(2021, 12, 30),
-        );
+        let report = portfolio.report(2021);
 
         assert_eq!(report.adjusted_profit(), Money::new(d128::from(-100)))
     }
@@ -211,10 +234,7 @@ mod test {
         ];
 
         let portfolio = Portfolio::with_carry_losses(transactions, 1);
-        let report = portfolio.report(
-            NaiveDate::from_ymd(2021, 1, 1),
-            NaiveDate::from_ymd(2021, 12, 30),
-        );
+        let report = portfolio.report(2021);
 
         assert_eq!(report.adjusted_profit(), Money::new(d128::from(-100)))
     }
@@ -264,10 +284,7 @@ mod test {
         ];
 
         let portfolio = Portfolio::with_carry_losses(transactions, 2);
-        let report = portfolio.report(
-            NaiveDate::from_ymd(2021, 1, 1),
-            NaiveDate::from_ymd(2021, 12, 30),
-        );
+        let report = portfolio.report(2021);
 
         assert_eq!(report.adjusted_profit(), Money::new(d128::from(-300)))
     }

@@ -20,9 +20,7 @@ fn main() {
     // 2020 / -2330.4
     // 2021 / 629.5
 
-    let from = NaiveDate::from_ymd(2021, 1, 1);
-    let to = NaiveDate::from_ymd(2021, 12, 31);
-    let profits = portfolio.report(from, to);
+    let profits = portfolio.report(2021);
 
     println!("profits for 2021 {:#?}", profits.profit());
     println!(

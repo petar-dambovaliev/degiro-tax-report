@@ -1,4 +1,3 @@
-use chrono::NaiveDate;
 use decimal::d128;
 use degiro_tax_report::money::Money;
 use degiro_tax_report::portfolio::Portfolio;
@@ -20,12 +19,7 @@ fn parse_and_calculate() {
 
     let portfolio = Portfolio::with_carry_losses(transactions, 5);
 
-    let from = NaiveDate::from_ymd(2020, 1, 1);
-    let to = NaiveDate::from_ymd(2020, 12, 30);
-    let report = portfolio.report(from, to);
+    let report = portfolio.report(2021);
 
-    assert_eq!(
-        report.profit(),
-        Money::new(d128!(-2330.423052032860713296898262191196))
-    )
+    assert_eq!(report.adjusted_profit(), Money::new(d128!(0)))
 }
