@@ -1,4 +1,3 @@
-use chrono::NaiveDate;
 use degiro_tax_report::portfolio::Portfolio;
 use degiro_tax_report::Transaction;
 use std::fs::File;
