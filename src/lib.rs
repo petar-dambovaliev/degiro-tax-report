@@ -1,10 +1,16 @@
 pub mod money;
 pub mod portfolio;
 
+use anyhow::anyhow;
 use chrono::{NaiveDate, NaiveTime};
+use csv::DeserializeRecordsIter;
 use dateparser::parse;
+use futures::Stream;
 use money::Money;
+use serde::de::DeserializeOwned;
 use serde::{de, Deserialize, Serialize};
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
 pub enum TransactionType {
     Buy,
@@ -139,4 +145,35 @@ fn local_date_parse(s: &str) -> Result<NaiveDate, chrono::ParseError> {
 
 fn local_time_parse(s: &str) -> Result<NaiveTime, chrono::ParseError> {
     NaiveTime::parse_from_str(s, "%H:%M")
+}
+
+pub struct CsvStream<'r, R, D> {
+    iter: DeserializeRecordsIter<'r, R, D>,
+}
+
+impl<'r, R, D> CsvStream<'r, R, D>
+where
+    R: std::io::Read,
+    D: DeserializeOwned + Unpin,
+{
+    pub fn new(iter: DeserializeRecordsIter<'r, R, D>) -> Self {
+        Self { iter }
+    }
+}
+
+impl<R, D> Stream for CsvStream<'_, R, D>
+where
+    R: std::io::Read,
+    D: DeserializeOwned + Unpin,
+{
+    type Item = anyhow::Result<D>;
+
+    fn poll_next(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let next = self
+            .get_mut()
+            .iter
+            .next()
+            .map(|res| res.map_err(|e| anyhow!("{}", e)));
+        Poll::Ready(next)
+    }
 }

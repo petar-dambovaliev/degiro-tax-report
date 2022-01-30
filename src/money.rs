@@ -4,12 +4,31 @@ use regex::Regex;
 use serde::de::Visitor;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::fmt;
+use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
 #[non_exhaustive]
 pub enum Error {
     Currency(Option<String>, Option<String>),
 }
+
+impl Debug for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Currency(left, right) => {
+                f.write_str(&format!("left: {:#?} right: {:#?}", left, right))
+            }
+        }
+    }
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Debug::fmt(self, f)
+    }
+}
+
+impl std::error::Error for Error {}
 
 #[derive(Debug, Serialize, Clone, Default, PartialEq)]
 pub struct Money {
