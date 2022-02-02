@@ -7,8 +7,12 @@ use csv::DeserializeRecordsIter;
 use dateparser::parse;
 use futures::Stream;
 use money::Money;
-use serde::de::DeserializeOwned;
+use rev_lines::RevLines;
 use serde::{de, Deserialize, Serialize};
+use std::fmt::Write;
+use std::fs::File;
+use std::io::BufReader;
+use std::iter::Peekable;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -147,33 +151,70 @@ fn local_time_parse(s: &str) -> Result<NaiveTime, chrono::ParseError> {
     NaiveTime::parse_from_str(s, "%H:%M")
 }
 
-pub struct CsvStream<'r, R, D> {
-    iter: DeserializeRecordsIter<'r, R, D>,
+pub struct CsvStream {
+    parser: ReverseCsv,
 }
 
-impl<'r, R, D> CsvStream<'r, R, D>
-where
-    R: std::io::Read,
-    D: DeserializeOwned + Unpin,
-{
-    pub fn new(iter: DeserializeRecordsIter<'r, R, D>) -> Self {
-        Self { iter }
+impl CsvStream {
+    pub fn new(file: File) -> std::io::Result<Self> {
+        let parser = ReverseCsv::new(file)?;
+        Ok(Self { parser })
     }
 }
 
-impl<R, D> Stream for CsvStream<'_, R, D>
-where
-    R: std::io::Read,
-    D: DeserializeOwned + Unpin,
-{
-    type Item = anyhow::Result<D>;
+impl Stream for CsvStream {
+    type Item = anyhow::Result<Transaction>;
 
-    fn poll_next(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let next = self
-            .get_mut()
-            .iter
+            .as_mut()
+            .parser
             .next()
             .map(|res| res.map_err(|e| anyhow!("{}", e)));
         Poll::Ready(next)
+    }
+}
+
+struct ReverseCsv {
+    rev_lines: Peekable<RevLines<File>>,
+}
+
+impl ReverseCsv {
+    pub fn new(file: File) -> std::io::Result<Self> {
+        let reader = BufReader::new(file);
+        let rev_lines = RevLines::new(reader)?.peekable();
+
+        Ok(Self { rev_lines })
+    }
+}
+
+const HEADERS: &str = "Date,Time,Product,ISIN,Reference,Venue,Quantity,Price,,Local value,,Value,,Exchange rate,Transaction and/or third,,Total,,Order ID\n";
+
+impl Iterator for ReverseCsv {
+    type Item = anyhow::Result<Transaction>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let line = self.rev_lines.next()?;
+        // if it is the first/headers skip
+        self.rev_lines.peek()?;
+
+        let mut input = HEADERS.to_string();
+        input.write_str(&line).unwrap();
+
+        let mut rdr = csv::ReaderBuilder::new()
+            .has_headers(true)
+            .from_reader(input.as_bytes());
+        let mut iter: DeserializeRecordsIter<_, Transaction> = rdr.deserialize();
+
+        let item = iter.next()?;
+
+        assert!(iter.peekable().peek().is_none());
+
+        let res = match item {
+            Ok(k) => anyhow::Result::Ok(k),
+            Err(e) => anyhow::Result::Err(anyhow!("{}", e)),
+        };
+
+        Some(res)
     }
 }

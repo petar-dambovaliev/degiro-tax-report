@@ -146,6 +146,7 @@ dependencies = [
  "lazy_static",
  "log",
  "regex",
+ "rev_lines",
  "serde",
  "tokio",
 ]
@@ -476,6 +477,12 @@ name = "regex-syntax"
 version = "0.6.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b"
+
+[[package]]
+name = "rev_lines"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18eb52b6664d331053136fcac7e4883bdc6f5fc04a6aab3b0f75eafb80ab88b3"
 
 [[package]]
 name = "rustc-serialize"

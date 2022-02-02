@@ -16,8 +16,13 @@ pub struct Report {
 
 impl Report {
     ///returns the total profits
-    pub fn profit(&self) -> Result<Money, Error> {
-        let profit = self.profits.get(&self.year).unwrap();
+    pub fn profit(&self) -> anyhow::Result<Money> {
+        let profit = self.profits.get(&self.year).ok_or(anyhow!(
+            "cannot find data for year: {} profits: {:#?}",
+            self.year,
+            self.profits
+        ))?;
+
         let mut res = profit.0.clone();
         res.add(&profit.1)?;
         Ok(res)
@@ -65,12 +70,12 @@ impl Report {
     }
 }
 
-pub struct Portfolio<S: Stream<Item = anyhow::Result<Transaction>> + Unpin> {
+pub struct Portfolio<S: Stream<Item = anyhow::Result<Transaction>>> {
     tr_stream: S,
     years_carry_losses: u8,
 }
 
-impl<S: Stream<Item = anyhow::Result<Transaction>> + Unpin> Portfolio<S> {
+impl<S: Stream<Item = anyhow::Result<Transaction>>> Portfolio<S> {
     pub fn new(tr_stream: S) -> Self {
         Self {
             tr_stream,
@@ -176,7 +181,7 @@ struct State {
 mod test {
     use crate::portfolio::Portfolio;
     use crate::{Money, Transaction};
-    use chrono::{NaiveDate, NaiveTime};
+    use chrono::NaiveDate;
     use decimal::d128;
     use futures::stream;
 
