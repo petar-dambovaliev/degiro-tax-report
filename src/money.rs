@@ -36,6 +36,17 @@ pub struct Money {
     pub(crate) currency: Option<String>,
 }
 
+impl Display for Money {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let res = write!(f, "amount: {}", self.amount);
+
+        if let Some(currency) = &self.currency {
+            return write!(f, "currency: {}", currency);
+        }
+        res
+    }
+}
+
 impl Money {
     pub fn new(amount: d128) -> Self {
         Self {
