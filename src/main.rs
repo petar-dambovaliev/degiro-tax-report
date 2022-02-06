@@ -15,7 +15,7 @@ async fn main() {
 
     let profits = portfolio.report(2021).await.unwrap();
 
-    println!("profits for 2021 {:#?}", profits.profit());
+    //println!("profits for 2021 {:#?}", profits.profit());
     println!(
         "profits for 2021, adjusted with carry over losses {:#?}",
         profits.adjusted_profit()

@@ -33,7 +33,7 @@ impl std::error::Error for Error {}
 #[derive(Debug, Serialize, Clone, Default, PartialEq)]
 pub struct Money {
     pub(crate) amount: d128,
-    currency: Option<String>,
+    pub(crate) currency: Option<String>,
 }
 
 impl Money {

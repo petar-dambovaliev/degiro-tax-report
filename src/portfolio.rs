@@ -66,10 +66,17 @@ impl Report {
         }
 
         profit.add(&total)?;
-        Ok(profit.truncate_trailing_zeros())
+        let trunc = profit.truncate_trailing_zeros();
+
+        if trunc.is_negative() {
+            return Ok(Money{ amount: Default::default(), currency: trunc.currency });
+        }
+        Ok(trunc)
     }
 }
 
+// The Stream is expected to produce transactions in order
+// from oldest to newest
 pub struct Portfolio<S: Stream<Item = anyhow::Result<Transaction>>> {
     tr_stream: S,
     years_carry_losses: u8,
