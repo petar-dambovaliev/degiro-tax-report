@@ -5,7 +5,7 @@ edition = "2018"
 authors = ["Petar Dambovaliev <petar.atanasov.1987@gmail.com>"]
 description = "A library and a cli application to calculate annual tax reports"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/rust-darpi/darpi.git"
+repository = "https://github.com/petar-dambovaliev/degiro-tax-report"
 keywords = ["tax", "tax-report", "degiro", "annual-report"]
 categories = ["Command line utilities", "asynchronous", "Visualization"]
 
