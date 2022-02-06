@@ -7,7 +7,7 @@ description = "A library and a cli application to calculate annual tax reports"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/petar-dambovaliev/degiro-tax-report"
 keywords = ["tax", "tax-report", "degiro", "annual-report"]
-categories = ["Command line utilities", "asynchronous", "Visualization"]
+categories = ["command-line-utilities", "asynchronous", "visualization"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
